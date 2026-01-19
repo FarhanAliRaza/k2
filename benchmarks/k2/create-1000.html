@@ -2,21 +2,22 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>SignalHTML - Create 10,000 Rows</title>
+  <title>K2 - Create 1000 Rows</title>
   <style>
     body { font-family: system-ui; padding: 1rem; background: #0f0f0f; color: #e0e0e0; }
     button { padding: 0.5rem 1rem; margin: 0.25rem; cursor: pointer; }
     .row { padding: 0.25rem 0.5rem; border-bottom: 1px solid #333; }
+    .row.selected { background: #2563eb; }
     #results { margin: 1rem 0; padding: 1rem; background: #1a1a1a; border-radius: 4px; }
     #container { max-height: 400px; overflow-y: auto; }
   </style>
 </head>
 <body>
-  <h1>SignalHTML - Create 10,000 Rows Benchmark</h1>
+  <h1>K2 - Create 1000 Rows Benchmark</h1>
 
   <div id="controls">
-    <button onclick="runBenchmark()">Run Benchmark (3 iterations)</button>
-    <button onclick="createRows()">Create 10,000 Rows</button>
+    <button onclick="runBenchmark()">Run Benchmark (5 iterations)</button>
+    <button onclick="createRows()">Create 1000 Rows</button>
     <button onclick="clearRows()">Clear</button>
   </div>
 
@@ -27,10 +28,11 @@
 
   <div id="container"></div>
 
-  <script src="../../dist/signal-html.min.js"></script>
+  <script src="../../dist/k2.min.js"></script>
   <script>
-    const { State, effect } = SignalHTML;
+    const { State, effect } = K2;
 
+    // Data store
     const rows = new State([]);
     let nextId = 1;
 
@@ -38,21 +40,30 @@
     const lastRunEl = document.getElementById('lastRun');
     const averageEl = document.getElementById('average');
 
+    // Create a row element
+    function createRowElement(row) {
+      const div = document.createElement('div');
+      div.className = 'row';
+      div.textContent = row.label;
+      div.dataset.id = row.id;
+      return div;
+    }
+
+    // Effect to render rows
     effect(() => {
       const currentRows = rows.get();
       container.innerHTML = '';
       for (const row of currentRows) {
-        const div = document.createElement('div');
-        div.className = 'row';
-        div.textContent = row.label;
-        container.appendChild(div);
+        container.appendChild(createRowElement(row));
       }
     });
 
+    // Generate data for N rows
     function buildData(count) {
-      const adjectives = ['pretty', 'large', 'big', 'small', 'tall', 'short', 'long', 'handsome', 'plain', 'quaint'];
-      const colours = ['red', 'yellow', 'blue', 'green', 'pink', 'brown', 'purple', 'white', 'black', 'orange'];
-      const nouns = ['table', 'chair', 'house', 'bbq', 'desk', 'car', 'pony', 'cookie', 'sandwich', 'burger'];
+      const adjectives = ['pretty', 'large', 'big', 'small', 'tall', 'short', 'long', 'handsome', 'plain', 'quaint', 'clean', 'elegant', 'easy', 'angry', 'crazy', 'helpful', 'mushy', 'odd', 'unsightly', 'adorable', 'important', 'inexpensive', 'cheap', 'expensive', 'fancy'];
+      const colours = ['red', 'yellow', 'blue', 'green', 'pink', 'brown', 'purple', 'brown', 'white', 'black', 'orange'];
+      const nouns = ['table', 'chair', 'house', 'bbq', 'desk', 'car', 'pony', 'cookie', 'sandwich', 'burger', 'pizza', 'mouse', 'keyboard'];
+
       const data = [];
       for (let i = 0; i < count; i++) {
         data.push({
@@ -73,34 +84,36 @@
     async function runBenchmark() {
       times.length = 0;
 
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 5; i++) {
         clearRows();
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 50));
 
         const start = performance.now();
-        rows.set(buildData(10000));
+        rows.set(buildData(1000));
         await new Promise(r => requestAnimationFrame(r));
         const end = performance.now();
 
         const time = end - start;
         times.push(time);
         lastRunEl.textContent = `${time.toFixed(2)}ms`;
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 100));
       }
 
       const avg = times.reduce((a, b) => a + b, 0) / times.length;
       averageEl.textContent = `${avg.toFixed(2)}ms (${times.map(t => t.toFixed(1)).join(', ')})`;
 
+      // Report to parent if in iframe
       if (window.parent !== window) {
         window.parent.postMessage({
           type: 'benchmark-result',
-          framework: 'signalhtml',
-          benchmark: 'create10k',
+          framework: 'k2',
+          benchmark: 'create',
           time: avg
         }, '*');
       }
     }
 
+    // Auto-run if requested
     if (new URLSearchParams(window.location.search).get('autorun') === 'true') {
       setTimeout(runBenchmark, 100);
     }

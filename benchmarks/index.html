@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SignalHTML vs Alpine.js Benchmark</title>
+  <title>K2 vs Alpine.js Benchmark</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -93,15 +93,15 @@
   </style>
 </head>
 <body>
-  <h1>SignalHTML vs Alpine.js Benchmark</h1>
-  <p>Performance comparison between SignalHTML (TC39 Signals) and Alpine.js</p>
+  <h1>K2 vs Alpine.js Benchmark</h1>
+  <p>Performance comparison between K2 (TC39 Signals) and Alpine.js</p>
 
   <div class="card">
     <h2>Bundle Size Comparison</h2>
     <div class="size-compare">
       <div class="size-box">
         <div class="size-value">~3.6KB</div>
-        <div class="size-label">SignalHTML (gzipped)</div>
+        <div class="size-label">K2 (gzipped)</div>
       </div>
       <div class="size-box">
         <div class="size-value">~17KB</div>
@@ -112,7 +112,7 @@
         <div class="size-label">Petite-Vue (gzipped)</div>
       </div>
     </div>
-    <p style="margin-top: 1rem; color: #888;">SignalHTML is ~4.7x smaller than Alpine.js and ~1.7x smaller than Petite-Vue!</p>
+    <p style="margin-top: 1rem; color: #888;">K2 is ~4.7x smaller than Alpine.js and ~1.7x smaller than Petite-Vue!</p>
   </div>
 
   <div class="card">
@@ -125,7 +125,7 @@
       <thead>
         <tr>
           <th>Benchmark</th>
-          <th>SignalHTML</th>
+          <th>K2</th>
           <th>Alpine.js</th>
           <th>Winner</th>
         </tr>
@@ -189,16 +189,16 @@
     <h2>Run Individual Benchmarks</h2>
     <p>Click to open benchmark pages directly:</p>
 
-    <h3 style="color: #4ade80; margin-top: 1rem;">SignalHTML</h3>
+    <h3 style="color: #4ade80; margin-top: 1rem;">K2</h3>
     <div class="links">
-      <a href="signalhtml/create-1000.html" target="_blank">Create 1000</a>
-      <a href="signalhtml/create-10000.html" target="_blank">Create 10000</a>
-      <a href="signalhtml/append-1000.html" target="_blank">Append 1000</a>
-      <a href="signalhtml/update-1000.html" target="_blank">Update</a>
-      <a href="signalhtml/select-row.html" target="_blank">Select</a>
-      <a href="signalhtml/remove-row.html" target="_blank">Remove</a>
-      <a href="signalhtml/swap-1000.html" target="_blank">Swap</a>
-      <a href="signalhtml/clear-1000.html" target="_blank">Clear</a>
+      <a href="k2/create-1000.html" target="_blank">Create 1000</a>
+      <a href="k2/create-10000.html" target="_blank">Create 10000</a>
+      <a href="k2/append-1000.html" target="_blank">Append 1000</a>
+      <a href="k2/update-1000.html" target="_blank">Update</a>
+      <a href="k2/select-row.html" target="_blank">Select</a>
+      <a href="k2/remove-row.html" target="_blank">Remove</a>
+      <a href="k2/swap-1000.html" target="_blank">Swap</a>
+      <a href="k2/clear-1000.html" target="_blank">Clear</a>
     </div>
 
     <h3 style="color: #60a5fa; margin-top: 1rem;">Alpine.js</h3>
@@ -218,7 +218,7 @@
 
   <script>
     const results = {
-      signalhtml: {},
+      k2: {},
       alpine: {}
     };
 
@@ -237,29 +237,29 @@
         el.className = '';
       });
       document.getElementById('log').innerHTML = '';
-      results.signalhtml = {};
+      results.k2 = {};
       results.alpine = {};
     }
 
     function updateResult(framework, benchmark, time) {
       results[framework][benchmark] = time;
-      const cellId = `${framework === 'signalhtml' ? 'signal' : 'alpine'}-${benchmark}`;
+      const cellId = `${framework === 'k2' ? 'signal' : 'alpine'}-${benchmark}`;
       const cell = document.getElementById(cellId);
       if (cell) {
         cell.textContent = `${time.toFixed(2)}ms`;
       }
 
       // Check if both results are in
-      if (results.signalhtml[benchmark] && results.alpine[benchmark]) {
+      if (results.k2[benchmark] && results.alpine[benchmark]) {
         const winnerId = `winner-${benchmark}`;
         const winnerEl = document.getElementById(winnerId);
         if (winnerEl) {
-          const signalTime = results.signalhtml[benchmark];
+          const signalTime = results.k2[benchmark];
           const alpineTime = results.alpine[benchmark];
 
           if (signalTime < alpineTime) {
             const diff = ((alpineTime - signalTime) / alpineTime * 100).toFixed(1);
-            winnerEl.textContent = `SignalHTML ${diff}% faster`;
+            winnerEl.textContent = `K2 ${diff}% faster`;
             winnerEl.className = 'faster';
           } else if (alpineTime < signalTime) {
             const diff = ((signalTime - alpineTime) / signalTime * 100).toFixed(1);
@@ -323,7 +323,7 @@
         { file: 'swap-1000.html', name: 'swap' },
         { file: 'clear-1000.html', name: 'clear' }
       ];
-      const frameworks = ['signalhtml', 'alpine'];
+      const frameworks = ['k2', 'alpine'];
 
       for (const benchmark of benchmarks) {
         for (const framework of frameworks) {

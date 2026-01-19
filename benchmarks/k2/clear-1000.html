@@ -2,37 +2,36 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>SignalHTML - Select Row</title>
+  <title>K2 - Clear 1000 Rows</title>
   <style>
     body { font-family: system-ui; padding: 1rem; background: #0f0f0f; color: #e0e0e0; }
     button { padding: 0.5rem 1rem; margin: 0.25rem; cursor: pointer; }
-    .row { padding: 0.25rem 0.5rem; border-bottom: 1px solid #333; cursor: pointer; }
-    .row.selected { background: #2563eb; color: white; }
+    .row { padding: 0.25rem 0.5rem; border-bottom: 1px solid #333; }
     #results { margin: 1rem 0; padding: 1rem; background: #1a1a1a; border-radius: 4px; }
     #container { max-height: 400px; overflow-y: auto; }
   </style>
 </head>
 <body>
-  <h1>SignalHTML - Select Row Benchmark</h1>
+  <h1>K2 - Clear 1000 Rows Benchmark</h1>
 
   <div id="controls">
     <button onclick="runBenchmark()">Run Benchmark (5 iterations)</button>
     <button onclick="createRows()">Create 1000 Rows</button>
+    <button onclick="clearRowsTimed()">Clear Rows</button>
   </div>
 
   <div id="results">
-    <div>Last select: <span id="lastRun">-</span></div>
+    <div>Last clear: <span id="lastRun">-</span></div>
     <div>Average: <span id="average">-</span></div>
   </div>
 
   <div id="container"></div>
 
-  <script src="../../dist/signal-html.min.js"></script>
+  <script src="../../dist/k2.min.js"></script>
   <script>
-    const { State, effect } = SignalHTML;
+    const { State, effect } = K2;
 
     const rows = new State([]);
-    const selected = new State(null);
     let nextId = 1;
 
     const container = document.getElementById('container');
@@ -41,13 +40,11 @@
 
     effect(() => {
       const currentRows = rows.get();
-      const selectedId = selected.get();
       container.innerHTML = '';
       for (const row of currentRows) {
         const div = document.createElement('div');
-        div.className = 'row' + (row.id === selectedId ? ' selected' : '');
+        div.className = 'row';
         div.textContent = row.label;
-        div.onclick = () => selected.set(row.id);
         container.appendChild(div);
       }
     });
@@ -56,6 +53,7 @@
       const adjectives = ['pretty', 'large', 'big', 'small', 'tall', 'short', 'long', 'handsome', 'plain', 'quaint'];
       const colours = ['red', 'yellow', 'blue', 'green', 'pink', 'brown', 'purple', 'white', 'black', 'orange'];
       const nouns = ['table', 'chair', 'house', 'bbq', 'desk', 'car', 'pony', 'cookie', 'sandwich', 'burger'];
+
       const data = [];
       for (let i = 0; i < count; i++) {
         data.push({
@@ -70,32 +68,25 @@
 
     function createRows() {
       rows.set(buildData(1000));
-      selected.set(null);
     }
 
     const times = [];
     async function runBenchmark() {
       times.length = 0;
-      createRows();
-      await new Promise(r => setTimeout(r, 100));
 
       for (let i = 0; i < 5; i++) {
-        const randomIndex = Math.floor(Math.random() * 1000);
-        const currentRows = rows.get();
+        createRows();
+        await new Promise(r => setTimeout(r, 100));
 
         const start = performance.now();
-        if (currentRows[randomIndex]) {
-          selected.set(currentRows[randomIndex].id);
-        }
-        // Wait for DOM to update (effect runs sync but let's ensure paint)
+        rows.set([]);
         await new Promise(r => requestAnimationFrame(r));
-        await new Promise(r => setTimeout(r, 0));
         const end = performance.now();
 
         const time = end - start;
         times.push(time);
         lastRunEl.textContent = `${time.toFixed(2)}ms`;
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 50));
       }
 
       const avg = times.reduce((a, b) => a + b, 0) / times.length;
@@ -104,8 +95,8 @@
       if (window.parent !== window) {
         window.parent.postMessage({
           type: 'benchmark-result',
-          framework: 'signalhtml',
-          benchmark: 'select',
+          framework: 'k2',
+          benchmark: 'clear',
           time: avg
         }, '*');
       }

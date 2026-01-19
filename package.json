@@ -8,9 +8,9 @@
   "types": "dist/k2.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/k2.d.ts",
       "import": "./dist/k2.esm.min.js",
-      "require": "./dist/k2.min.js",
-      "types": "./dist/k2.d.ts"
+      "require": "./dist/k2.min.js"
     }
   },
   "files": [

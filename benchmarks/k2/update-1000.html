@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>SignalHTML - Update Every 10th Row</title>
+  <title>K2 - Update Every 10th Row</title>
   <style>
     body { font-family: system-ui; padding: 1rem; background: #0f0f0f; color: #e0e0e0; }
     button { padding: 0.5rem 1rem; margin: 0.25rem; cursor: pointer; }
@@ -12,7 +12,7 @@
   </style>
 </head>
 <body>
-  <h1>SignalHTML - Update Every 10th Row Benchmark</h1>
+  <h1>K2 - Update Every 10th Row Benchmark</h1>
 
   <div id="controls">
     <button onclick="runBenchmark()">Run Benchmark (5 iterations)</button>
@@ -28,9 +28,9 @@
 
   <div id="container"></div>
 
-  <script src="../../dist/signal-html.min.js"></script>
+  <script src="../../dist/k2.min.js"></script>
   <script>
-    const { State, effect } = SignalHTML;
+    const { State, effect } = K2;
 
     // Use individual signals per row for fine-grained updates
     const rowSignals = [];
@@ -105,7 +105,7 @@
       if (window.parent !== window) {
         window.parent.postMessage({
           type: 'benchmark-result',
-          framework: 'signalhtml',
+          framework: 'k2',
           benchmark: 'update',
           time: avg
         }, '*');

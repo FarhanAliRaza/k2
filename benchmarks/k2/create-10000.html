@@ -2,34 +2,34 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>SignalHTML - Remove Row</title>
+  <title>K2 - Create 10,000 Rows</title>
   <style>
     body { font-family: system-ui; padding: 1rem; background: #0f0f0f; color: #e0e0e0; }
     button { padding: 0.5rem 1rem; margin: 0.25rem; cursor: pointer; }
-    .row { padding: 0.25rem 0.5rem; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
-    .row button { padding: 0.1rem 0.5rem; font-size: 0.8rem; }
+    .row { padding: 0.25rem 0.5rem; border-bottom: 1px solid #333; }
     #results { margin: 1rem 0; padding: 1rem; background: #1a1a1a; border-radius: 4px; }
     #container { max-height: 400px; overflow-y: auto; }
   </style>
 </head>
 <body>
-  <h1>SignalHTML - Remove Row Benchmark</h1>
+  <h1>K2 - Create 10,000 Rows Benchmark</h1>
 
   <div id="controls">
-    <button onclick="runBenchmark()">Run Benchmark (5 iterations)</button>
-    <button onclick="createRows()">Create 1000 Rows</button>
+    <button onclick="runBenchmark()">Run Benchmark (3 iterations)</button>
+    <button onclick="createRows()">Create 10,000 Rows</button>
+    <button onclick="clearRows()">Clear</button>
   </div>
 
   <div id="results">
-    <div>Last remove: <span id="lastRun">-</span></div>
+    <div>Last run: <span id="lastRun">-</span></div>
     <div>Average: <span id="average">-</span></div>
   </div>
 
   <div id="container"></div>
 
-  <script src="../../dist/signal-html.min.js"></script>
+  <script src="../../dist/k2.min.js"></script>
   <script>
-    const { State, effect } = SignalHTML;
+    const { State, effect } = K2;
 
     const rows = new State([]);
     let nextId = 1;
@@ -38,17 +38,13 @@
     const lastRunEl = document.getElementById('lastRun');
     const averageEl = document.getElementById('average');
 
-    function removeRow(id) {
-      rows.set(rows.get().filter(r => r.id !== id));
-    }
-
     effect(() => {
       const currentRows = rows.get();
       container.innerHTML = '';
       for (const row of currentRows) {
         const div = document.createElement('div');
         div.className = 'row';
-        div.innerHTML = `<span>${row.label}</span><button onclick="removeRow(${row.id})">X</button>`;
+        div.textContent = row.label;
         container.appendChild(div);
       }
     });
@@ -69,31 +65,27 @@
       return data;
     }
 
-    function createRows() {
-      rows.set(buildData(1000));
+    function clearRows() {
+      rows.set([]);
     }
 
     const times = [];
     async function runBenchmark() {
       times.length = 0;
 
-      for (let i = 0; i < 5; i++) {
-        createRows();
+      for (let i = 0; i < 3; i++) {
+        clearRows();
         await new Promise(r => setTimeout(r, 100));
 
-        const currentRows = rows.get();
-        const randomIndex = Math.floor(Math.random() * currentRows.length);
-        const id = currentRows[randomIndex].id;
-
         const start = performance.now();
-        rows.set(currentRows.filter(r => r.id !== id));
+        rows.set(buildData(10000));
         await new Promise(r => requestAnimationFrame(r));
         const end = performance.now();
 
         const time = end - start;
         times.push(time);
         lastRunEl.textContent = `${time.toFixed(2)}ms`;
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 200));
       }
 
       const avg = times.reduce((a, b) => a + b, 0) / times.length;
@@ -102,8 +94,8 @@
       if (window.parent !== window) {
         window.parent.postMessage({
           type: 'benchmark-result',
-          framework: 'signalhtml',
-          benchmark: 'remove',
+          framework: 'k2',
+          benchmark: 'create10k',
           time: avg
         }, '*');
       }

@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>SignalHTML - Append 1000 Rows</title>
+  <title>K2 - Append 1000 Rows</title>
   <style>
     body { font-family: system-ui; padding: 1rem; background: #0f0f0f; color: #e0e0e0; }
     button { padding: 0.5rem 1rem; margin: 0.25rem; cursor: pointer; }
@@ -12,7 +12,7 @@
   </style>
 </head>
 <body>
-  <h1>SignalHTML - Append 1000 Rows Benchmark</h1>
+  <h1>K2 - Append 1000 Rows Benchmark</h1>
 
   <div id="controls">
     <button onclick="runBenchmark()">Run Benchmark (5 iterations)</button>
@@ -29,9 +29,9 @@
 
   <div id="container"></div>
 
-  <script src="../../dist/signal-html.min.js"></script>
+  <script src="../../dist/k2.min.js"></script>
   <script>
-    const { State, effect } = SignalHTML;
+    const { State, effect } = K2;
 
     const rows = new State([]);
     let nextId = 1;
@@ -104,7 +104,7 @@
       if (window.parent !== window) {
         window.parent.postMessage({
           type: 'benchmark-result',
-          framework: 'signalhtml',
+          framework: 'k2',
           benchmark: 'append',
           time: avg
         }, '*');
