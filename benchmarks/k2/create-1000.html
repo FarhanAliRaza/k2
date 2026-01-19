@@ -26,44 +26,36 @@
     <div>Average: <span id="average">-</span></div>
   </div>
 
-  <div id="container"></div>
+  <div id="app" x-data="benchmarkStore()">
+    <div id="container">
+      <template x-for="row in rows" :key="row.id">
+        <div class="row" x-text="row.label"></div>
+      </template>
+    </div>
+  </div>
 
   <script src="../../dist/k2.min.js"></script>
   <script>
-    const { State, effect } = K2;
-
-    // Data store
-    const rows = new State([]);
+    let appData = null;
     let nextId = 1;
 
-    const container = document.getElementById('container');
     const lastRunEl = document.getElementById('lastRun');
     const averageEl = document.getElementById('average');
 
-    // Create a row element
-    function createRowElement(row) {
-      const div = document.createElement('div');
-      div.className = 'row';
-      div.textContent = row.label;
-      div.dataset.id = row.id;
-      return div;
+    function benchmarkStore() {
+      return {
+        rows: [],
+        init() {
+          appData = this;
+        }
+      };
     }
 
-    // Effect to render rows
-    effect(() => {
-      const currentRows = rows.get();
-      container.innerHTML = '';
-      for (const row of currentRows) {
-        container.appendChild(createRowElement(row));
-      }
-    });
+    const adjectives = ['pretty', 'large', 'big', 'small', 'tall', 'short', 'long', 'handsome', 'plain', 'quaint', 'clean', 'elegant', 'easy', 'angry', 'crazy', 'helpful', 'mushy', 'odd', 'unsightly', 'adorable', 'important', 'inexpensive', 'cheap', 'expensive', 'fancy'];
+    const colours = ['red', 'yellow', 'blue', 'green', 'pink', 'brown', 'purple', 'brown', 'white', 'black', 'orange'];
+    const nouns = ['table', 'chair', 'house', 'bbq', 'desk', 'car', 'pony', 'cookie', 'sandwich', 'burger', 'pizza', 'mouse', 'keyboard'];
 
-    // Generate data for N rows
     function buildData(count) {
-      const adjectives = ['pretty', 'large', 'big', 'small', 'tall', 'short', 'long', 'handsome', 'plain', 'quaint', 'clean', 'elegant', 'easy', 'angry', 'crazy', 'helpful', 'mushy', 'odd', 'unsightly', 'adorable', 'important', 'inexpensive', 'cheap', 'expensive', 'fancy'];
-      const colours = ['red', 'yellow', 'blue', 'green', 'pink', 'brown', 'purple', 'brown', 'white', 'black', 'orange'];
-      const nouns = ['table', 'chair', 'house', 'bbq', 'desk', 'car', 'pony', 'cookie', 'sandwich', 'burger', 'pizza', 'mouse', 'keyboard'];
-
       const data = [];
       for (let i = 0; i < count; i++) {
         data.push({
@@ -76,12 +68,20 @@
       return data;
     }
 
+    function createRows() {
+      appData.rows = buildData(1000);
+    }
+
     function clearRows() {
-      rows.set([]);
+      appData.rows = [];
     }
 
     const times = [];
     async function runBenchmark() {
+      if (!appData) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+
       times.length = 0;
 
       for (let i = 0; i < 5; i++) {
@@ -89,7 +89,7 @@
         await new Promise(r => setTimeout(r, 50));
 
         const start = performance.now();
-        rows.set(buildData(1000));
+        appData.rows = buildData(1000);
         await new Promise(r => requestAnimationFrame(r));
         const end = performance.now();
 
@@ -102,7 +102,6 @@
       const avg = times.reduce((a, b) => a + b, 0) / times.length;
       averageEl.textContent = `${avg.toFixed(2)}ms (${times.map(t => t.toFixed(1)).join(', ')})`;
 
-      // Report to parent if in iframe
       if (window.parent !== window) {
         window.parent.postMessage({
           type: 'benchmark-result',
@@ -113,7 +112,6 @@
       }
     }
 
-    // Auto-run if requested
     if (new URLSearchParams(window.location.search).get('autorun') === 'true') {
       setTimeout(runBenchmark, 100);
     }
