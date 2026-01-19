@@ -4,7 +4,7 @@
 
 [![npm version](https://img.shields.io/npm/v/@farhanaliraza/k2-js.svg)](https://www.npmjs.com/package/@farhanaliraza/k2-js)
 [![gzip size](https://img.shields.io/badge/gzip-3.6KB-brightgreen)](https://bundlephobia.com/package/@farhanaliraza/k2-js)
-[![license](https://img.shields.io/npm/l/@farhanaliraza/k2-js.svg)](https://github.com/user/k2/blob/main/LICENSE)
+[![license](https://img.shields.io/npm/l/@farhanaliraza/k2-js.svg)](https://github.com/FarhanAliRaza/k2/blob/main/LICENSE)
 
 K2 is a lightweight reactive framework that brings Alpine.js-style declarative HTML with the performance of TC39 Signals. At just **3.6KB gzipped**, it's ~4.7x smaller than Alpine.js and ~1.7x smaller than Petite-Vue.
 
@@ -21,7 +21,11 @@ K2 is a lightweight reactive framework that brings Alpine.js-style declarative H
 ### CDN
 
 ```html
+<!-- unpkg -->
 <script src="https://unpkg.com/@farhanaliraza/k2-js"></script>
+
+<!-- jsDelivr -->
+<script src="https://cdn.jsdelivr.net/npm/@farhanaliraza/k2-js"></script>
 ```
 
 ### npm
@@ -144,14 +148,17 @@ Handle events:
 
 ## Computed Properties
 
-Define computed values as functions in x-data:
+Define computed values as arrow functions in x-data:
 
 ```html
 <div x-data="{
-  items: [1, 2, 3],
-  total() { return items.reduce((a, b) => a + b, 0) }
+  a: 5,
+  b: 3,
+  sum: () => a + b,
+  product: () => a * b
 }">
-  <span x-text="total"></span>
+  <span x-text="sum"></span>
+  <span x-text="product"></span>
 </div>
 ```
 
