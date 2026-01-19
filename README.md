@@ -6,11 +6,11 @@
 [![gzip size](https://img.shields.io/badge/gzip-3.6KB-brightgreen)](https://bundlephobia.com/package/@farhanaliraza/k2-js)
 [![license](https://img.shields.io/npm/l/@farhanaliraza/k2-js.svg)](https://github.com/FarhanAliRaza/k2/blob/main/LICENSE)
 
-K2 is a lightweight reactive framework that brings Alpine.js-style declarative HTML with the performance of TC39 Signals. At just **3.6KB gzipped**, it's ~4.7x smaller than Alpine.js and ~1.7x smaller than Petite-Vue.
+K2 is a lightweight reactive framework that brings Alpine.js-style declarative HTML with the performance of TC39 Signals. At just **3.6KB gzipped**, it's ~4x smaller than Alpine.js (~14KB) and ~2x smaller than Petite-Vue (~7KB).
 
 ## Features
 
-- **Tiny**: 3.6KB gzipped (vs Alpine.js 17KB, Petite-Vue 6KB)
+- **Tiny**: 3.6KB gzipped (vs Alpine.js ~14KB, Petite-Vue ~7KB)
 - **Fast**: Built on TC39 Signals for fine-grained reactivity
 - **Familiar**: Alpine.js-compatible directive syntax
 - **Zero dependencies**: No runtime dependencies
