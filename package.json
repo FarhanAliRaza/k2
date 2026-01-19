@@ -1,0 +1,67 @@
+{
+  "name": "k2-js",
+  "version": "0.1.0",
+  "description": "Ultra-fast Alpine.js alternative powered by TC39 Signals. 3.6KB gzipped, 5-10x faster.",
+  "type": "module",
+  "main": "dist/k2.min.js",
+  "module": "dist/k2.esm.min.js",
+  "types": "dist/k2.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/k2.esm.min.js",
+      "require": "./dist/k2.min.js",
+      "types": "./dist/k2.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "pnpm run build:iife && pnpm run build:esm",
+    "build:iife": "esbuild src/index.ts --bundle --format=iife --global-name=K2 --minify --outfile=dist/k2.min.js",
+    "build:esm": "esbuild src/index.ts --bundle --format=esm --minify --outfile=dist/k2.esm.min.js",
+    "build:dev": "esbuild src/index.ts --bundle --format=iife --global-name=K2 --outfile=dist/k2.js --sourcemap",
+    "dev": "esbuild src/index.ts --bundle --format=iife --global-name=K2 --outfile=dist/k2.js --sourcemap --watch --serve=8080 --servedir=.",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "size": "echo 'Minified:' && wc -c < dist/k2.min.js && echo 'Gzipped:' && gzip -c dist/k2.min.js | wc -c",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "prepublishOnly": "pnpm run build && pnpm run test"
+  },
+  "keywords": [
+    "signals",
+    "reactive",
+    "alpine",
+    "alpinejs",
+    "tc39",
+    "frontend",
+    "framework",
+    "lightweight",
+    "fast",
+    "petite-vue"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/user/k2.git"
+  },
+  "bugs": {
+    "url": "https://github.com/user/k2/issues"
+  },
+  "homepage": "https://github.com/user/k2#readme",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "esbuild": "^0.25.0",
+    "happy-dom": "^12.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^1.6.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=18"
+  }
+}

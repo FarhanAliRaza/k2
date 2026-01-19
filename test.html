@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SignalHTML Test</title>
+  <style>
+    body { font-family: monospace; padding: 2rem; background: #111; color: #0f0; }
+    .pass { color: #0f0; }
+    .fail { color: #f00; }
+    button { margin: 0.5rem; padding: 0.5rem 1rem; cursor: pointer; }
+    #log { white-space: pre; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>SignalHTML Test</h1>
+
+  <!-- Test 1: Counter -->
+  <h2>Test 1: Counter</h2>
+  <div x-data="{ count: 0 }">
+    Count: <span id="t1" x-text="count"></span>
+    <button id="t1-btn" @click="count++">+</button>
+  </div>
+
+  <!-- Test 2: Computed -->
+  <h2>Test 2: Computed (a * b)</h2>
+  <div x-data="{ a: 3, b: 4, product: () => a * b }">
+    <span id="t2-a" x-text="a"></span> × <span id="t2-b" x-text="b"></span> = <span id="t2-result" x-text="product"></span>
+    <button id="t2-btn" @click="a++">a++</button>
+  </div>
+
+  <!-- Test 3: Input binding -->
+  <h2>Test 3: Two-way binding</h2>
+  <div x-data="{ name: 'test' }">
+    <input id="t3-input" x-model="name" type="text">
+    <span>Hello, <span id="t3-display" x-text="name"></span>!</span>
+  </div>
+
+  <!-- Test 4: Show/hide -->
+  <h2>Test 4: x-show</h2>
+  <div x-data="{ visible: true }">
+    <button id="t4-btn" @click="visible = !visible">Toggle</button>
+    <div id="t4-target" x-show="visible">VISIBLE</div>
+  </div>
+
+  <div id="log"></div>
+
+  <script src="./dist/signal-html.js"></script>
+  <script>
+    function log(msg, pass) {
+      const el = document.getElementById('log');
+      el.innerHTML += `<span class="${pass ? 'pass' : 'fail'}">${pass ? '✓' : '✗'} ${msg}</span>\n`;
+      console.log((pass ? '✓' : '✗') + ' ' + msg);
+    }
+
+    function runTests() {
+      // Test 1: Counter
+      const t1 = document.getElementById('t1');
+      const t1Btn = document.getElementById('t1-btn');
+      log(`T1: Initial count = ${t1.textContent}`, t1.textContent === '0');
+
+      t1Btn.click();
+      setTimeout(() => {
+        log(`T1: After click = ${t1.textContent}`, t1.textContent === '1');
+
+        // Test 2: Computed
+        const t2Result = document.getElementById('t2-result');
+        const t2Btn = document.getElementById('t2-btn');
+        log(`T2: Initial 3×4 = ${t2Result.textContent}`, t2Result.textContent === '12');
+
+        t2Btn.click();
+        setTimeout(() => {
+          log(`T2: After a++ = ${t2Result.textContent}`, t2Result.textContent === '16'); // 4*4=16
+
+          // Test 3: Input binding
+          const t3Input = document.getElementById('t3-input');
+          const t3Display = document.getElementById('t3-display');
+          log(`T3: Initial name = ${t3Display.textContent}`, t3Display.textContent === 'test');
+
+          t3Input.value = 'world';
+          t3Input.dispatchEvent(new Event('input'));
+          setTimeout(() => {
+            log(`T3: After input = ${t3Display.textContent}`, t3Display.textContent === 'world');
+
+            // Test 4: x-show
+            const t4Target = document.getElementById('t4-target');
+            const t4Btn = document.getElementById('t4-btn');
+            log(`T4: Initially visible = ${t4Target.style.display !== 'none'}`, t4Target.style.display !== 'none');
+
+            t4Btn.click();
+            setTimeout(() => {
+              log(`T4: After toggle = ${t4Target.style.display}`, t4Target.style.display === 'none');
+              log('\n=== Tests complete ===', true);
+            }, 50);
+          }, 50);
+        }, 50);
+      }, 50);
+    }
+
+    // Wait for SignalHTML to initialize
+    setTimeout(runTests, 200);
+  </script>
+</body>
+</html>

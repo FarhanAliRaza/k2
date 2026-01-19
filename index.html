@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SignalHTML - Alpine.js-like Framework with TC39 Signals</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.6;
+      background: #0f0f0f;
+      color: #e0e0e0;
+    }
+    h1 {
+      color: #4ade80;
+      border-bottom: 2px solid #4ade80;
+      padding-bottom: 0.5rem;
+    }
+    h2 {
+      color: #60a5fa;
+      margin-top: 2rem;
+    }
+    .demo {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+    }
+    button {
+      background: #4ade80;
+      color: #0f0f0f;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0.25rem;
+    }
+    button:hover {
+      background: #22c55e;
+    }
+    button:active {
+      transform: scale(0.98);
+    }
+    input, select, textarea {
+      background: #2a2a2a;
+      border: 1px solid #444;
+      color: #e0e0e0;
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-size: 1rem;
+      margin: 0.25rem;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #4ade80;
+    }
+    .counter {
+      font-size: 3rem;
+      font-weight: bold;
+      color: #4ade80;
+      text-align: center;
+      margin: 1rem 0;
+    }
+    .badge {
+      display: inline-block;
+      background: #60a5fa;
+      color: #0f0f0f;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+    .hidden {
+      display: none;
+    }
+    pre {
+      background: #1e1e1e;
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+      border: 1px solid #333;
+    }
+    code {
+      color: #4ade80;
+    }
+    .row {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .todo-item {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      padding: 0.5rem;
+      background: #2a2a2a;
+      border-radius: 4px;
+      margin: 0.5rem 0;
+    }
+    .todo-item.done span {
+      text-decoration: line-through;
+      color: #666;
+    }
+    .info {
+      background: #1e3a5f;
+      border: 1px solid #2563eb;
+      padding: 1rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>⚡ SignalHTML</h1>
+  <p>An Alpine.js-like framework powered by <strong>TC39 Signals</strong></p>
+
+  <div class="info">
+    <strong>Key Features:</strong>
+    <ul>
+      <li>Uses TC39 Signal proposal primitives under the hood</li>
+      <li>Automatic dependency tracking via signals</li>
+      <li>Lazy evaluation with computed signals</li>
+      <li>Familiar Alpine.js-like directive syntax</li>
+      <li>~5KB minified (compared to Alpine.js ~15KB)</li>
+    </ul>
+  </div>
+
+  <!-- Demo 1: Counter -->
+  <h2>1. Counter (Basic Reactivity)</h2>
+  <div class="demo" x-data="{ count: 0 }">
+    <div class="counter" x-text="count"></div>
+    <div class="row" style="justify-content: center;">
+      <button @click="count--">−</button>
+      <button @click="count++">+</button>
+      <button @click="count = 0">Reset</button>
+    </div>
+  </div>
+  <pre><code>&lt;div x-data="{ count: 0 }"&gt;
+  &lt;div x-text="count"&gt;&lt;/div&gt;
+  &lt;button @click="count++"&gt;+&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+
+  <!-- Demo 2: Two-way Binding -->
+  <h2>2. Two-way Binding (x-model)</h2>
+  <div class="demo" x-data="{ name: 'World', greeting: () => 'Hello, ' + name + '!' }">
+    <div class="row">
+      <label>Your name:</label>
+      <input type="text" x-model="name" placeholder="Enter your name">
+    </div>
+    <p style="font-size: 1.5rem; margin-top: 1rem;">
+      <span x-text="greeting"></span>
+    </p>
+  </div>
+  <pre><code>&lt;div x-data="{ name: 'World', greeting: () => 'Hello, ' + name + '!' }"&gt;
+  &lt;input x-model="name"&gt;
+  &lt;span x-text="greeting"&gt;&lt;/span&gt;
+&lt;/div&gt;</code></pre>
+
+  <!-- Demo 3: Show/Hide -->
+  <h2>3. Conditional Visibility (x-show)</h2>
+  <div class="demo" x-data="{ visible: true }">
+    <button @click="visible = !visible">
+      Toggle (<span x-text="visible ? 'visible' : 'hidden'"></span>)
+    </button>
+    <div x-show="visible" style="margin-top: 1rem; padding: 1rem; background: #2a2a2a; border-radius: 4px;">
+      👋 Hello! I can be toggled!
+    </div>
+  </div>
+
+  <!-- Demo 4: Attribute Binding -->
+  <h2>4. Attribute Binding (x-bind / :)</h2>
+  <div class="demo" x-data="{ color: 'green', disabled: false }">
+    <div class="row">
+      <select x-model="color">
+        <option value="green">Green</option>
+        <option value="blue">Blue</option>
+        <option value="red">Red</option>
+        <option value="purple">Purple</option>
+      </select>
+      <label>
+        <input type="checkbox" x-model="disabled"> Disabled
+      </label>
+    </div>
+    <button
+      :style="'background: ' + color"
+      :disabled="disabled"
+      style="margin-top: 1rem;">
+      Styled Button
+    </button>
+  </div>
+  <pre><code>&lt;button :style="'background: ' + color" :disabled="disabled"&gt;
+  Styled Button
+&lt;/button&gt;</code></pre>
+
+  <!-- Demo 5: Event Modifiers -->
+  <h2>5. Event Modifiers</h2>
+  <div class="demo" x-data="{ count: 0 }">
+    <p>Clicked: <span x-text="count"></span> times (try clicking the button or pressing Enter)</p>
+    <button @click.prevent="count++">
+      Click me (.prevent)
+    </button>
+    <input
+      type="text"
+      placeholder="Press Enter"
+      @keydown.enter="count++"
+      style="width: 200px;">
+  </div>
+  <pre><code>&lt;button @click.prevent="count++"&gt;Click me&lt;/button&gt;
+&lt;input @keydown.enter="count++"&gt;</code></pre>
+
+  <!-- Demo 6: Computed Values -->
+  <h2>6. Computed Values (Derived State)</h2>
+  <div class="demo" x-data="{
+    a: 5,
+    b: 3,
+    sum: () => a + b,
+    product: () => a * b,
+    message: () => a + ' × ' + b + ' = ' + (a * b)
+  }">
+    <div class="row">
+      <label>A:</label>
+      <input type="number" x-model="a" style="width: 80px;">
+      <label>B:</label>
+      <input type="number" x-model="b" style="width: 80px;">
+    </div>
+    <div style="margin-top: 1rem;">
+      <p>Sum: <span class="badge" x-text="sum"></span></p>
+      <p>Product: <span class="badge" x-text="product"></span></p>
+      <p x-text="message"></p>
+    </div>
+  </div>
+  <pre><code>&lt;div x-data="{
+  a: 5,
+  b: 3,
+  sum: () => a + b,
+  product: () => a * b
+}"&gt;
+  &lt;span x-text="sum"&gt;&lt;/span&gt;
+&lt;/div&gt;</code></pre>
+
+  <!-- Demo 7: Class Binding -->
+  <h2>7. Class Binding</h2>
+  <div class="demo" x-data="{ active: false, theme: 'light' }">
+    <div class="row">
+      <button @click="active = !active">Toggle Active</button>
+      <select x-model="theme">
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+      </select>
+    </div>
+    <div
+      :class="{ 'badge': true, 'active': active }"
+      :style="theme === 'dark' ? 'background: #333; color: #fff' : ''"
+      style="margin-top: 1rem; padding: 1rem;">
+      <span x-text="active ? 'Active!' : 'Inactive'"></span>
+    </div>
+  </div>
+
+  <!-- Demo 8: Temperature Converter -->
+  <h2>8. Temperature Converter</h2>
+  <div class="demo" x-data="{
+    celsius: 20,
+    fahrenheit: () => (celsius * 9/5) + 32,
+    kelvin: () => celsius + 273.15
+  }">
+    <div class="row">
+      <label>Celsius:</label>
+      <input type="range" min="-50" max="100" x-model="celsius" style="width: 200px;">
+      <span x-text="celsius"></span>°C
+    </div>
+    <div style="margin-top: 1rem;">
+      <p>🌡️ <span x-text="fahrenheit"></span>°F</p>
+      <p>🔬 <span x-text="kelvin"></span>K</p>
+    </div>
+  </div>
+
+  <h2>How It Works</h2>
+  <div class="info">
+    <p><strong>Under the hood:</strong></p>
+    <ol>
+      <li><code>x-data</code> creates <code>Signal.State</code> for each property</li>
+      <li>Functions become <code>Signal.Computed</code> with automatic dependency tracking</li>
+      <li><code>x-text</code>, <code>x-bind</code> etc. create effects that update the DOM</li>
+      <li>When a signal changes, only dependent effects re-run (fine-grained reactivity)</li>
+    </ol>
+    <p style="margin-top: 1rem;">
+      This is the same algorithm that powers Svelte 5's runes, but accessible without a compiler!
+    </p>
+  </div>
+
+  <script src="./dist/signal-html.min.js"></script>
+</body>
+</html>

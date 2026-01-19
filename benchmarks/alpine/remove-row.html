@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Alpine.js - Remove Row</title>
+  <style>
+    body { font-family: system-ui; padding: 1rem; background: #0f0f0f; color: #e0e0e0; }
+    button { padding: 0.5rem 1rem; margin: 0.25rem; cursor: pointer; }
+    .row { padding: 0.25rem 0.5rem; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
+    .row button { padding: 0.1rem 0.5rem; font-size: 0.8rem; }
+    #results { margin: 1rem 0; padding: 1rem; background: #1a1a1a; border-radius: 4px; }
+    #container { max-height: 400px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+  <h1>Alpine.js - Remove Row Benchmark</h1>
+
+  <div id="controls">
+    <button onclick="runBenchmark()">Run Benchmark (5 iterations)</button>
+    <button onclick="createRows()">Create 1000 Rows</button>
+  </div>
+
+  <div id="results">
+    <div>Last remove: <span id="lastRun">-</span></div>
+    <div>Average: <span id="average">-</span></div>
+  </div>
+
+  <div id="app" x-data="benchmarkStore()">
+    <div id="container">
+      <template x-for="row in rows" :key="row.id">
+        <div class="row">
+          <span x-text="row.label"></span>
+          <button @click="removeRow(row.id)">X</button>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+    let appData = null;
+    let nextId = 1;
+
+    const lastRunEl = document.getElementById('lastRun');
+    const averageEl = document.getElementById('average');
+
+    function buildData(count) {
+      const adjectives = ['pretty', 'large', 'big', 'small', 'tall', 'short', 'long', 'handsome', 'plain', 'quaint'];
+      const colours = ['red', 'yellow', 'blue', 'green', 'pink', 'brown', 'purple', 'white', 'black', 'orange'];
+      const nouns = ['table', 'chair', 'house', 'bbq', 'desk', 'car', 'pony', 'cookie', 'sandwich', 'burger'];
+      const data = [];
+      for (let i = 0; i < count; i++) {
+        data.push({
+          id: nextId++,
+          label: adjectives[Math.floor(Math.random() * adjectives.length)] + ' ' +
+                 colours[Math.floor(Math.random() * colours.length)] + ' ' +
+                 nouns[Math.floor(Math.random() * nouns.length)]
+        });
+      }
+      return data;
+    }
+
+    function benchmarkStore() {
+      return {
+        rows: [],
+        removeRow(id) {
+          this.rows = this.rows.filter(r => r.id !== id);
+        },
+        init() { appData = this; }
+      };
+    }
+
+    function createRows() {
+      appData.rows = buildData(1000);
+    }
+
+    const times = [];
+    async function runBenchmark() {
+      if (!appData) await new Promise(r => setTimeout(r, 500));
+      times.length = 0;
+
+      for (let i = 0; i < 5; i++) {
+        createRows();
+        await new Promise(r => setTimeout(r, 100));
+
+        const randomIndex = Math.floor(Math.random() * appData.rows.length);
+        const id = appData.rows[randomIndex].id;
+
+        const start = performance.now();
+        appData.rows = appData.rows.filter(r => r.id !== id);
+        await new Promise(r => requestAnimationFrame(r));
+        await new Promise(r => setTimeout(r, 50));
+        const end = performance.now();
+        times.push(end - start);
+        lastRunEl.textContent = `${(end - start).toFixed(2)}ms`;
+        await new Promise(r => setTimeout(r, 100));
+      }
+
+      const avg = times.reduce((a, b) => a + b, 0) / times.length;
+      averageEl.textContent = `${avg.toFixed(2)}ms (${times.map(t => t.toFixed(1)).join(', ')})`;
+
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'benchmark-result',
+          framework: 'alpine',
+          benchmark: 'remove',
+          time: avg
+        }, '*');
+      }
+    }
+
+    document.addEventListener('alpine:init', () => {
+      setTimeout(() => {
+        if (new URLSearchParams(window.location.search).get('autorun') === 'true') {
+          runBenchmark();
+        }
+      }, 200);
+    });
+  </script>
+</body>
+</html>

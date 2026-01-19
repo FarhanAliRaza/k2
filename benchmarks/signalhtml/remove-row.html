@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>SignalHTML - Remove Row</title>
+  <style>
+    body { font-family: system-ui; padding: 1rem; background: #0f0f0f; color: #e0e0e0; }
+    button { padding: 0.5rem 1rem; margin: 0.25rem; cursor: pointer; }
+    .row { padding: 0.25rem 0.5rem; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
+    .row button { padding: 0.1rem 0.5rem; font-size: 0.8rem; }
+    #results { margin: 1rem 0; padding: 1rem; background: #1a1a1a; border-radius: 4px; }
+    #container { max-height: 400px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+  <h1>SignalHTML - Remove Row Benchmark</h1>
+
+  <div id="controls">
+    <button onclick="runBenchmark()">Run Benchmark (5 iterations)</button>
+    <button onclick="createRows()">Create 1000 Rows</button>
+  </div>
+
+  <div id="results">
+    <div>Last remove: <span id="lastRun">-</span></div>
+    <div>Average: <span id="average">-</span></div>
+  </div>
+
+  <div id="container"></div>
+
+  <script src="../../dist/signal-html.min.js"></script>
+  <script>
+    const { State, effect } = SignalHTML;
+
+    const rows = new State([]);
+    let nextId = 1;
+
+    const container = document.getElementById('container');
+    const lastRunEl = document.getElementById('lastRun');
+    const averageEl = document.getElementById('average');
+
+    function removeRow(id) {
+      rows.set(rows.get().filter(r => r.id !== id));
+    }
+
+    effect(() => {
+      const currentRows = rows.get();
+      container.innerHTML = '';
+      for (const row of currentRows) {
+        const div = document.createElement('div');
+        div.className = 'row';
+        div.innerHTML = `<span>${row.label}</span><button onclick="removeRow(${row.id})">X</button>`;
+        container.appendChild(div);
+      }
+    });
+
+    function buildData(count) {
+      const adjectives = ['pretty', 'large', 'big', 'small', 'tall', 'short', 'long', 'handsome', 'plain', 'quaint'];
+      const colours = ['red', 'yellow', 'blue', 'green', 'pink', 'brown', 'purple', 'white', 'black', 'orange'];
+      const nouns = ['table', 'chair', 'house', 'bbq', 'desk', 'car', 'pony', 'cookie', 'sandwich', 'burger'];
+      const data = [];
+      for (let i = 0; i < count; i++) {
+        data.push({
+          id: nextId++,
+          label: adjectives[Math.floor(Math.random() * adjectives.length)] + ' ' +
+                 colours[Math.floor(Math.random() * colours.length)] + ' ' +
+                 nouns[Math.floor(Math.random() * nouns.length)]
+        });
+      }
+      return data;
+    }
+
+    function createRows() {
+      rows.set(buildData(1000));
+    }
+
+    const times = [];
+    async function runBenchmark() {
+      times.length = 0;
+
+      for (let i = 0; i < 5; i++) {
+        createRows();
+        await new Promise(r => setTimeout(r, 100));
+
+        const currentRows = rows.get();
+        const randomIndex = Math.floor(Math.random() * currentRows.length);
+        const id = currentRows[randomIndex].id;
+
+        const start = performance.now();
+        rows.set(currentRows.filter(r => r.id !== id));
+        await new Promise(r => requestAnimationFrame(r));
+        const end = performance.now();
+
+        const time = end - start;
+        times.push(time);
+        lastRunEl.textContent = `${time.toFixed(2)}ms`;
+        await new Promise(r => setTimeout(r, 100));
+      }
+
+      const avg = times.reduce((a, b) => a + b, 0) / times.length;
+      averageEl.textContent = `${avg.toFixed(2)}ms (${times.map(t => t.toFixed(1)).join(', ')})`;
+
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'benchmark-result',
+          framework: 'signalhtml',
+          benchmark: 'remove',
+          time: avg
+        }, '*');
+      }
+    }
+
+    if (new URLSearchParams(window.location.search).get('autorun') === 'true') {
+      setTimeout(runBenchmark, 100);
+    }
+  </script>
+</body>
+</html>
