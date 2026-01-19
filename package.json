@@ -1,6 +1,6 @@
 {
-  "name": "k2-js",
-  "version": "0.1.0",
+  "name": "@farhanaliraza/k2-js",
+  "version": "0.1.1",
   "description": "Ultra-fast Alpine.js alternative powered by TC39 Signals. 3.6KB gzipped, 5-10x faster.",
   "type": "module",
   "main": "dist/k2.min.js",
@@ -43,16 +43,16 @@
     "fast",
     "petite-vue"
   ],
-  "author": "",
+  "author": "Farhan Ali Raza",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/user/k2.git"
+    "url": "git+https://github.com/FarhanAliRaza/k2.git"
   },
   "bugs": {
-    "url": "https://github.com/user/k2/issues"
+    "url": "https://github.com/FarhanAliRaza/k2/issues"
   },
-  "homepage": "https://github.com/user/k2#readme",
+  "homepage": "https://github.com/FarhanAliRaza/k2#readme",
   "devDependencies": {
     "@types/node": "^20.10.0",
     "esbuild": "^0.25.0",

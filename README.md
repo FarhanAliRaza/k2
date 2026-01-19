@@ -2,9 +2,9 @@
 
 **Ultra-fast Alpine.js alternative powered by TC39 Signals**
 
-[![npm version](https://img.shields.io/npm/v/k2-js.svg)](https://www.npmjs.com/package/k2-js)
-[![gzip size](https://img.shields.io/badge/gzip-3.6KB-brightgreen)](https://bundlephobia.com/package/k2-js)
-[![license](https://img.shields.io/npm/l/k2-js.svg)](https://github.com/user/k2/blob/main/LICENSE)
+[![npm version](https://img.shields.io/npm/v/@farhanaliraza/k2-js.svg)](https://www.npmjs.com/package/@farhanaliraza/k2-js)
+[![gzip size](https://img.shields.io/badge/gzip-3.6KB-brightgreen)](https://bundlephobia.com/package/@farhanaliraza/k2-js)
+[![license](https://img.shields.io/npm/l/@farhanaliraza/k2-js.svg)](https://github.com/user/k2/blob/main/LICENSE)
 
 K2 is a lightweight reactive framework that brings Alpine.js-style declarative HTML with the performance of TC39 Signals. At just **3.6KB gzipped**, it's ~4.7x smaller than Alpine.js and ~1.7x smaller than Petite-Vue.
 
@@ -21,19 +21,19 @@ K2 is a lightweight reactive framework that brings Alpine.js-style declarative H
 ### CDN
 
 ```html
-<script src="https://unpkg.com/k2-js"></script>
+<script src="https://unpkg.com/@farhanaliraza/k2-js"></script>
 ```
 
 ### npm
 
 ```bash
-npm install k2-js
+npm install @farhanaliraza/k2-js
 # or
-pnpm add k2-js
+pnpm add @farhanaliraza/k2-js
 ```
 
 ```js
-import K2 from 'k2-js';
+import K2 from '@farhanaliraza/k2-js';
 ```
 
 ## Quick Start
@@ -44,7 +44,7 @@ import K2 from 'k2-js';
   <button @click="count++">+</button>
 </div>
 
-<script src="https://unpkg.com/k2-js"></script>
+<script src="https://unpkg.com/@farhanaliraza/k2-js"></script>
 ```
 
 K2 auto-initializes when the DOM is ready. For manual control:
@@ -160,7 +160,7 @@ Define computed values as functions in x-data:
 K2 exports its signal primitives for advanced use:
 
 ```js
-import { State, Computed, effect, untrack } from 'k2-js';
+import { State, Computed, effect, untrack } from '@farhanaliraza/k2-js';
 
 // Create reactive state
 const count = new State(0);
