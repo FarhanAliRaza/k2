@@ -13,7 +13,7 @@
   </style>
 </head>
 <body>
-  <h1>K2 - Remove Row Benchmark</h1>
+  <h1>K2 - Remove Row Benchmark (x-for)</h1>
 
   <div id="controls">
     <button onclick="runBenchmark()">Run Benchmark (5 iterations)</button>
@@ -38,19 +38,61 @@
     const lastRunEl = document.getElementById('lastRun');
     const averageEl = document.getElementById('average');
 
+    // Key -> DOM element mapping for efficient updates
+    const keyMap = new Map();
+    let currentKeys = [];
+
     function removeRow(id) {
       rows.set(rows.get().filter(r => r.id !== id));
     }
 
+    // Keyed reconciliation effect
     effect(() => {
       const currentRows = rows.get();
-      container.innerHTML = '';
-      for (const row of currentRows) {
-        const div = document.createElement('div');
-        div.className = 'row';
-        div.innerHTML = `<span>${row.label}</span><button onclick="removeRow(${row.id})">X</button>`;
-        container.appendChild(div);
+      const newKeys = currentRows.map(r => r.id);
+      const newKeySet = new Set(newKeys);
+
+      // Phase 1: Remove items not in new array
+      for (const oldKey of currentKeys) {
+        if (!newKeySet.has(oldKey)) {
+          const el = keyMap.get(oldKey);
+          if (el) {
+            el.remove();
+            keyMap.delete(oldKey);
+          }
+        }
       }
+
+      // Phase 2: Add new items, reorder existing
+      let prevNode = null;
+      for (let i = 0; i < currentRows.length; i++) {
+        const row = currentRows[i];
+        const key = row.id;
+        let el = keyMap.get(key);
+
+        if (!el) {
+          // Create new element
+          el = document.createElement('div');
+          el.className = 'row';
+          el.innerHTML = `<span>${row.label}</span><button>X</button>`;
+          el.querySelector('button').onclick = () => removeRow(row.id);
+          keyMap.set(key, el);
+        }
+
+        // Position correctly
+        if (prevNode) {
+          if (el.previousSibling !== prevNode) {
+            prevNode.after(el);
+          }
+        } else {
+          if (el !== container.firstChild) {
+            container.prepend(el);
+          }
+        }
+        prevNode = el;
+      }
+
+      currentKeys = newKeys;
     });
 
     function buildData(count) {

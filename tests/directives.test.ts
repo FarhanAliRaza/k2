@@ -431,4 +431,245 @@ describe('K2 Directives', () => {
       expect(span?.textContent).toBe('4');
     });
   });
+
+  describe('x-for', () => {
+    it('should render initial list', async () => {
+      container.innerHTML = `
+        <div x-data="{ items: [{id: 1, name: 'A'}, {id: 2, name: 'B'}, {id: 3, name: 'C'}] }">
+          <template x-for="item in items" :key="item.id">
+            <div class="item" x-text="item.name"></div>
+          </template>
+        </div>
+      `;
+
+      K2.init(container);
+      await Promise.resolve();
+
+      const items = container.querySelectorAll('.item');
+      expect(items.length).toBe(3);
+      expect(items[0].textContent).toBe('A');
+      expect(items[1].textContent).toBe('B');
+      expect(items[2].textContent).toBe('C');
+    });
+
+    it('should add new items', async () => {
+      container.innerHTML = `
+        <div x-data="{ items: [{id: 1, name: 'A'}] }">
+          <button @click="items = [...items, {id: 2, name: 'B'}]">Add</button>
+          <template x-for="item in items" :key="item.id">
+            <div class="item" x-text="item.name"></div>
+          </template>
+        </div>
+      `;
+
+      K2.init(container);
+      await Promise.resolve();
+
+      let items = container.querySelectorAll('.item');
+      expect(items.length).toBe(1);
+
+      const button = container.querySelector('button');
+      button?.click();
+      await Promise.resolve();
+
+      items = container.querySelectorAll('.item');
+      expect(items.length).toBe(2);
+      expect(items[1].textContent).toBe('B');
+    });
+
+    it('should remove items', async () => {
+      container.innerHTML = `
+        <div x-data="{ items: [{id: 1, name: 'A'}, {id: 2, name: 'B'}, {id: 3, name: 'C'}] }">
+          <button @click="items = items.filter(i => i.id !== 2)">Remove B</button>
+          <template x-for="item in items" :key="item.id">
+            <div class="item" x-text="item.name"></div>
+          </template>
+        </div>
+      `;
+
+      K2.init(container);
+      await Promise.resolve();
+
+      let items = container.querySelectorAll('.item');
+      expect(items.length).toBe(3);
+
+      const button = container.querySelector('button');
+      button?.click();
+      await Promise.resolve();
+
+      items = container.querySelectorAll('.item');
+      expect(items.length).toBe(2);
+      expect(items[0].textContent).toBe('A');
+      expect(items[1].textContent).toBe('C');
+    });
+
+    it('should reorder items with minimal DOM operations', async () => {
+      container.innerHTML = `
+        <div x-data="{ items: [{id: 1, name: 'A'}, {id: 2, name: 'B'}, {id: 3, name: 'C'}] }">
+          <button @click="items = [items[2], items[1], items[0]]">Reverse</button>
+          <template x-for="item in items" :key="item.id">
+            <div class="item" x-text="item.name"></div>
+          </template>
+        </div>
+      `;
+
+      K2.init(container);
+      await Promise.resolve();
+
+      // Get initial elements
+      let items = container.querySelectorAll('.item');
+      const firstElement = items[0];
+      const lastElement = items[2];
+
+      const button = container.querySelector('button');
+      button?.click();
+      await Promise.resolve();
+
+      // Elements should be reordered, not recreated
+      items = container.querySelectorAll('.item');
+      expect(items.length).toBe(3);
+      expect(items[0].textContent).toBe('C');
+      expect(items[1].textContent).toBe('B');
+      expect(items[2].textContent).toBe('A');
+
+      // Verify DOM elements were moved, not recreated (same instances)
+      expect(items[0]).toBe(lastElement);
+      expect(items[2]).toBe(firstElement);
+    });
+
+    it('should support index in loop', async () => {
+      container.innerHTML = `
+        <div x-data="{ items: ['A', 'B', 'C'] }">
+          <template x-for="(item, index) in items" :key="index">
+            <div class="item" x-text="index + ': ' + item"></div>
+          </template>
+        </div>
+      `;
+
+      K2.init(container);
+      await Promise.resolve();
+
+      const items = container.querySelectorAll('.item');
+      expect(items.length).toBe(3);
+      expect(items[0].textContent).toBe('0: A');
+      expect(items[1].textContent).toBe('1: B');
+      expect(items[2].textContent).toBe('2: C');
+    });
+
+    it('should work without :key (fallback to index)', async () => {
+      container.innerHTML = `
+        <div x-data="{ items: ['A', 'B', 'C'] }">
+          <template x-for="item in items">
+            <div class="item" x-text="item"></div>
+          </template>
+        </div>
+      `;
+
+      K2.init(container);
+      await Promise.resolve();
+
+      const items = container.querySelectorAll('.item');
+      expect(items.length).toBe(3);
+      expect(items[0].textContent).toBe('A');
+      expect(items[1].textContent).toBe('B');
+      expect(items[2].textContent).toBe('C');
+    });
+
+    it('should update item data reactively', async () => {
+      container.innerHTML = `
+        <div x-data="{ items: [{id: 1, value: 'A'}] }">
+          <button @click="items = [{id: 1, value: 'B'}]">Update</button>
+          <template x-for="item in items" :key="item.id">
+            <div class="item" x-text="item.value"></div>
+          </template>
+        </div>
+      `;
+
+      K2.init(container);
+      await new Promise(r => setTimeout(r, 0));
+
+      let items = container.querySelectorAll('.item');
+      expect(items[0].textContent).toBe('A');
+
+      const button = container.querySelector('button');
+      button?.click();
+      await new Promise(r => setTimeout(r, 0));
+
+      items = container.querySelectorAll('.item');
+      expect(items[0].textContent).toBe('B');
+    });
+
+    it('should support x-bind inside x-for', async () => {
+      container.innerHTML = `
+        <div x-data="{ items: [{id: 1, active: true}, {id: 2, active: false}] }">
+          <template x-for="item in items" :key="item.id">
+            <div class="item" :class="{ active: item.active }"></div>
+          </template>
+        </div>
+      `;
+
+      K2.init(container);
+      await Promise.resolve();
+
+      const items = container.querySelectorAll('.item');
+      expect(items[0].classList.contains('active')).toBe(true);
+      expect(items[1].classList.contains('active')).toBe(false);
+    });
+
+    it('should clear all items', async () => {
+      container.innerHTML = `
+        <div x-data="{ items: [{id: 1, name: 'A'}, {id: 2, name: 'B'}] }">
+          <button @click="items = []">Clear</button>
+          <template x-for="item in items" :key="item.id">
+            <div class="item" x-text="item.name"></div>
+          </template>
+        </div>
+      `;
+
+      K2.init(container);
+      await Promise.resolve();
+
+      let items = container.querySelectorAll('.item');
+      expect(items.length).toBe(2);
+
+      const button = container.querySelector('button');
+      button?.click();
+      await Promise.resolve();
+
+      items = container.querySelectorAll('.item');
+      expect(items.length).toBe(0);
+    });
+
+    it('should swap rows efficiently', async () => {
+      container.innerHTML = `
+        <div x-data="{ items: [{id: 1, name: 'A'}, {id: 2, name: 'B'}, {id: 3, name: 'C'}] }">
+          <button @click="items = [items[0], items[2], items[1]]">Swap B and C</button>
+          <template x-for="item in items" :key="item.id">
+            <div class="item" x-text="item.name"></div>
+          </template>
+        </div>
+      `;
+
+      K2.init(container);
+      await Promise.resolve();
+
+      // Get initial elements
+      let items = container.querySelectorAll('.item');
+      const elementB = items[1];
+      const elementC = items[2];
+
+      const button = container.querySelector('button');
+      button?.click();
+      await Promise.resolve();
+
+      // Elements should be swapped, not recreated
+      items = container.querySelectorAll('.item');
+      expect(items[1].textContent).toBe('C');
+      expect(items[2].textContent).toBe('B');
+
+      // Verify DOM elements are the same instances (moved, not recreated)
+      expect(items[1]).toBe(elementC);
+      expect(items[2]).toBe(elementB);
+    });
+  });
 });

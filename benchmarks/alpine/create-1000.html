@@ -99,7 +99,6 @@
         const start = performance.now();
         appData.rows = buildData(1000);
         await new Promise(r => requestAnimationFrame(r));
-        await new Promise(r => setTimeout(r, 50));
         const end = performance.now();
         times.push(end - start);
 

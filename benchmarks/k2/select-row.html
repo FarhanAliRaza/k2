@@ -13,7 +13,7 @@
   </style>
 </head>
 <body>
-  <h1>K2 - Select Row Benchmark</h1>
+  <h1>K2 - Select Row Benchmark (x-for)</h1>
 
   <div id="controls">
     <button onclick="runBenchmark()">Run Benchmark (5 iterations)</button>
@@ -39,17 +39,61 @@
     const lastRunEl = document.getElementById('lastRun');
     const averageEl = document.getElementById('average');
 
+    // Key -> DOM element mapping for efficient updates
+    const keyMap = new Map();
+    let currentKeys = [];
+
+    // Keyed reconciliation effect
     effect(() => {
       const currentRows = rows.get();
       const selectedId = selected.get();
-      container.innerHTML = '';
-      for (const row of currentRows) {
-        const div = document.createElement('div');
-        div.className = 'row' + (row.id === selectedId ? ' selected' : '');
-        div.textContent = row.label;
-        div.onclick = () => selected.set(row.id);
-        container.appendChild(div);
+      const newKeys = currentRows.map(r => r.id);
+      const newKeySet = new Set(newKeys);
+
+      // Phase 1: Remove items not in new array
+      for (const oldKey of currentKeys) {
+        if (!newKeySet.has(oldKey)) {
+          const el = keyMap.get(oldKey);
+          if (el) {
+            el.remove();
+            keyMap.delete(oldKey);
+          }
+        }
       }
+
+      // Phase 2: Add new items, update existing, reorder
+      let prevNode = null;
+      for (let i = 0; i < currentRows.length; i++) {
+        const row = currentRows[i];
+        const key = row.id;
+        let el = keyMap.get(key);
+
+        if (!el) {
+          // Create new element
+          el = document.createElement('div');
+          el.className = 'row';
+          el.textContent = row.label;
+          el.onclick = () => selected.set(row.id);
+          keyMap.set(key, el);
+        }
+
+        // Update selected class
+        el.classList.toggle('selected', row.id === selectedId);
+
+        // Position correctly
+        if (prevNode) {
+          if (el.previousSibling !== prevNode) {
+            prevNode.after(el);
+          }
+        } else {
+          if (el !== container.firstChild) {
+            container.prepend(el);
+          }
+        }
+        prevNode = el;
+      }
+
+      currentKeys = newKeys;
     });
 
     function buildData(count) {
@@ -87,7 +131,6 @@
         if (currentRows[randomIndex]) {
           selected.set(currentRows[randomIndex].id);
         }
-        // Wait for DOM to update (effect runs sync but let's ensure paint)
         await new Promise(r => requestAnimationFrame(r));
         await new Promise(r => setTimeout(r, 0));
         const end = performance.now();

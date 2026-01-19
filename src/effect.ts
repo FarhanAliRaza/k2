@@ -16,6 +16,8 @@ const watcher = new Watcher(() => {
 
 function processPending(): void {
   needsEnqueue = true;
+  // Reset watcher dirty flag so nested signal changes can queue new microtasks
+  watcher.watch();
 
   for (const computed of watcher.getPending()) {
     computed.get();

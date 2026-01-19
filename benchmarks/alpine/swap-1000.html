@@ -103,7 +103,6 @@
           appData.rows[998] = temp;
         }
         await new Promise(r => requestAnimationFrame(r));
-        await new Promise(r => setTimeout(r, 50));
         const end = performance.now();
         times.push(end - start);
         await new Promise(r => setTimeout(r, 100));

@@ -21,8 +21,24 @@ interface ComponentScope {
   signals: SignalStore;
   computeds: ComputedStore;
   el: Element;
+  parent?: ComponentScope;
   get: (key: string) => unknown;
   set: (key: string, value: unknown) => void;
+}
+
+// x-for types
+interface ForItem {
+  key: unknown;
+  element: Element;
+  scope: ComponentScope;
+  cleanup: () => void;
+}
+
+interface ForState {
+  template: HTMLTemplateElement;
+  anchor: Comment;
+  keyMap: Map<unknown, ForItem>;
+  keys: unknown[];
 }
 
 const DIRECTIVES = {
@@ -40,6 +56,99 @@ const DIRECTIVES = {
 
 // Store active scopes
 const scopes = new WeakMap<Element, ComponentScope>();
+
+// Parse x-for expression: "item in items" or "(item, index) in items"
+interface ForExpression {
+  itemName: string;
+  indexName: string | null;
+  arrayExpr: string;
+}
+
+function parseForExpression(expr: string): ForExpression | null {
+  // Match: "item in items" or "(item, index) in items"
+  const match = expr.match(/^\s*(?:\(\s*(\w+)\s*,\s*(\w+)\s*\)|(\w+))\s+in\s+(.+)\s*$/);
+  if (!match) return null;
+
+  return {
+    itemName: match[3] || match[1], // single var or first in tuple
+    indexName: match[2] || null, // second in tuple
+    arrayExpr: match[4].trim(),
+  };
+}
+
+// Create a child scope for x-for items
+function createItemScope(
+  parentScope: ComponentScope,
+  el: Element,
+  itemName: string,
+  indexName: string | null,
+  item: unknown,
+  index: number
+): ComponentScope {
+  const signals: SignalStore = {
+    [itemName]: new State(item),
+  };
+  if (indexName) {
+    signals[indexName] = new State(index);
+  }
+
+  const scope: ComponentScope = {
+    signals,
+    computeds: {},
+    el,
+    parent: parentScope,
+    get(key: string): unknown {
+      if (key in signals) {
+        return signals[key].get();
+      }
+      // Fall back to parent scope
+      return parentScope.get(key);
+    },
+    set(key: string, value: unknown): void {
+      if (key in signals) {
+        signals[key].set(value);
+      } else {
+        parentScope.set(key, value);
+      }
+    },
+  };
+
+  return scope;
+}
+
+// Build with-context code for scoped expressions (includes parent scope)
+function buildScopedWithCode(scope: ComponentScope): string {
+  // Collect all keys from this scope and parents
+  const allKeys: Set<string> = new Set();
+  let current: ComponentScope | undefined = scope;
+  while (current) {
+    for (const k of Object.keys(current.signals)) allKeys.add(k);
+    for (const k of Object.keys(current.computeds)) allKeys.add(k);
+    current = current.parent;
+  }
+
+  const keys = Array.from(allKeys);
+  const g = keys.map(k => `get ${k}(){return s.get('${k}')}`).join(',');
+  const t = keys.map(k => `set ${k}(v){s.set('${k}',v)}`).join(',');
+  return `with({${g}${t ? ',' + t : ''}})`;
+}
+
+function evaluateScopedExpression(expr: string, scope: ComponentScope): unknown {
+  try {
+    return new Function('s', `${buildScopedWithCode(scope)}{return(${expr})}`)(scope);
+  } catch (e) {
+    console.error(`Error evaluating: ${expr}`, e);
+    return undefined;
+  }
+}
+
+function executeScopedStatement(stmt: string, scope: ComponentScope, event?: Event): void {
+  try {
+    new Function('s', '$event', `${buildScopedWithCode(scope)}{${stmt}}`)(scope, event);
+  } catch (e) {
+    console.error(`Error executing: ${stmt}`, e);
+  }
+}
 
 function createScopeFromString(el: Element, dataStr: string): ComponentScope {
   const signals: SignalStore = {};
@@ -164,6 +273,240 @@ function executeStatement(stmt: string, scope: ComponentScope, event?: Event): v
   } catch (e) {
     console.error(`Error executing: ${stmt}`, e);
   }
+}
+
+// Process element with scoped expressions (for x-for items)
+function processElementWithScope(el: Element, scope: ComponentScope): () => void {
+  const cleanups: (() => void)[] = [];
+  const attributes = Array.from(el.attributes);
+
+  for (const attr of attributes) {
+    const name = attr.name;
+    const value = attr.value;
+
+    if (name === DIRECTIVES.TEXT) {
+      cleanups.push(effect(() => {
+        el.textContent = String(evaluateScopedExpression(value, scope) ?? '');
+      }));
+    } else if (name === DIRECTIVES.HTML) {
+      cleanups.push(effect(() => {
+        el.innerHTML = String(evaluateScopedExpression(value, scope) ?? '');
+      }));
+    } else if (name === DIRECTIVES.SHOW) {
+      const originalDisplay = (el as HTMLElement).style.display || '';
+      cleanups.push(effect(() => {
+        const v = evaluateScopedExpression(value, scope);
+        (el as HTMLElement).style.display = v ? originalDisplay : 'none';
+      }));
+    } else if (name.startsWith(DIRECTIVES.BIND + ':') || name.startsWith(':')) {
+      const bindAttr = name.startsWith(':') ? name.slice(1) : name.slice(DIRECTIVES.BIND.length + 1);
+      cleanups.push(effect(() => {
+        const v = evaluateScopedExpression(value, scope);
+        if (bindAttr === 'class') {
+          if (typeof v === 'object' && v !== null) {
+            for (const [className, enabled] of Object.entries(v)) {
+              el.classList.toggle(className, Boolean(enabled));
+            }
+          } else {
+            el.setAttribute('class', String(v ?? ''));
+          }
+        } else if (bindAttr === 'style') {
+          if (typeof v === 'object' && v !== null) {
+            for (const [prop, val] of Object.entries(v)) {
+              (el as HTMLElement).style.setProperty(prop, String(val ?? ''));
+            }
+          } else {
+            el.setAttribute('style', String(v ?? ''));
+          }
+        } else if (v === null || v === undefined || v === false) {
+          el.removeAttribute(bindAttr);
+        } else if (v === true) {
+          el.setAttribute(bindAttr, '');
+        } else {
+          el.setAttribute(bindAttr, String(v));
+        }
+      }));
+    } else if (name.startsWith(DIRECTIVES.ON + ':') || name.startsWith('@')) {
+      const eventName = name.startsWith('@') ? name.slice(1) : name.slice(DIRECTIVES.ON.length + 1);
+      const parts = eventName.split('.');
+      const event = parts[0];
+      const modifiers = new Set(parts.slice(1));
+
+      const handler = (e: Event) => {
+        if (modifiers.has('prevent')) e.preventDefault();
+        if (modifiers.has('stop')) e.stopPropagation();
+        if (modifiers.has('self') && e.target !== el) return;
+
+        if (e instanceof KeyboardEvent) {
+          if (modifiers.has('enter') && e.key !== 'Enter') return;
+          if (modifiers.has('escape') && e.key !== 'Escape') return;
+          if (modifiers.has('space') && e.key !== ' ') return;
+          if (modifiers.has('tab') && e.key !== 'Tab') return;
+        }
+
+        executeScopedStatement(value, scope, e);
+      };
+
+      el.addEventListener(event, handler, { once: modifiers.has('once'), capture: modifiers.has('capture') });
+      cleanups.push(() => el.removeEventListener(event, handler));
+    }
+  }
+
+  return () => cleanups.forEach(fn => fn());
+}
+
+// Process for directive with keyed DOM diffing
+function processForDirective(template: HTMLTemplateElement, parentScope: ComponentScope): () => void {
+  const forExpr = template.getAttribute(DIRECTIVES.FOR);
+  if (!forExpr) return () => {};
+
+  const parsed = parseForExpression(forExpr);
+  if (!parsed) {
+    console.error(`Invalid x-for expression: ${forExpr}`);
+    return () => {};
+  }
+
+  const { itemName, indexName, arrayExpr } = parsed;
+  const keyExpr = template.getAttribute(':key') || template.getAttribute('x-bind:key');
+
+  // Create anchor comment to mark insertion point
+  const anchor = document.createComment('x-for');
+  template.parentNode?.insertBefore(anchor, template);
+  template.remove();
+
+  const state: ForState = {
+    template,
+    anchor,
+    keyMap: new Map(),
+    keys: [],
+  };
+
+  // Helper to get key for an item
+  const getKey = (item: unknown, index: number, scope: ComponentScope): unknown => {
+    if (!keyExpr) return index; // Fall back to index if no :key
+    return evaluateScopedExpression(keyExpr, scope);
+  };
+
+  // Create a new ForItem
+  const createForItem = (item: unknown, index: number): ForItem => {
+    // Clone the template content
+    const content = template.content.cloneNode(true) as DocumentFragment;
+    const element = content.firstElementChild;
+    if (!element) {
+      throw new Error('x-for template must have a single root element');
+    }
+
+    // Create item scope
+    const itemScope = createItemScope(parentScope, element, itemName, indexName, item, index);
+
+    // Process the element and its children
+    const cleanups: (() => void)[] = [];
+    cleanups.push(processElementWithScope(element, itemScope));
+
+    // Process child elements
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_ELEMENT);
+    let node: Element | null;
+    while ((node = walker.nextNode() as Element | null)) {
+      // Handle nested x-for
+      if (node.tagName === 'TEMPLATE' && node.hasAttribute(DIRECTIVES.FOR)) {
+        cleanups.push(processForDirective(node as HTMLTemplateElement, itemScope));
+      } else {
+        cleanups.push(processElementWithScope(node, itemScope));
+      }
+    }
+
+    const key = getKey(item, index, itemScope);
+
+    return {
+      key,
+      element,
+      scope: itemScope,
+      cleanup: () => cleanups.forEach(fn => fn()),
+    };
+  };
+
+  // Update an existing ForItem's data
+  const updateForItem = (forItem: ForItem, item: unknown, index: number): void => {
+    forItem.scope.signals[itemName].set(item);
+    if (indexName && forItem.scope.signals[indexName]) {
+      forItem.scope.signals[indexName].set(index);
+    }
+  };
+
+  // Reconciliation algorithm
+  const reconcileFor = (newItems: unknown[]): void => {
+    const { keyMap, keys: oldKeys, anchor } = state;
+
+    // Build new keys array and set
+    const newKeys: unknown[] = [];
+    const tempScopes: ComponentScope[] = [];
+
+    for (let i = 0; i < newItems.length; i++) {
+      // Create temporary scope to evaluate key expression
+      const tempScope = createItemScope(parentScope, anchor as unknown as Element, itemName, indexName, newItems[i], i);
+      tempScopes.push(tempScope);
+      const key = getKey(newItems[i], i, tempScope);
+      newKeys.push(key);
+    }
+
+    const newKeySet = new Set(newKeys);
+
+    // Phase 1: Remove items not in new array
+    for (const oldKey of oldKeys) {
+      if (!newKeySet.has(oldKey)) {
+        const forItem = keyMap.get(oldKey)!;
+        forItem.element.remove();
+        forItem.cleanup();
+        keyMap.delete(oldKey);
+      }
+    }
+
+    // Phase 2: Add new items, reorder existing
+    let prevNode: Node = anchor;
+    for (let i = 0; i < newItems.length; i++) {
+      const key = newKeys[i];
+      let forItem = keyMap.get(key);
+
+      if (!forItem) {
+        // New item - create element
+        forItem = createForItem(newItems[i], i);
+        keyMap.set(key, forItem);
+      } else {
+        // Existing item - update values
+        updateForItem(forItem, newItems[i], i);
+      }
+
+      // Position correctly (only move if needed)
+      const expectedNext = prevNode.nextSibling;
+      if (forItem.element !== expectedNext) {
+        prevNode.parentNode?.insertBefore(forItem.element, expectedNext);
+      }
+      prevNode = forItem.element;
+    }
+
+    state.keys = newKeys;
+  };
+
+  // Create effect to track array changes
+  const cleanup = effect(() => {
+    const items = evaluateScopedExpression(arrayExpr, parentScope) as unknown[];
+    if (!Array.isArray(items)) {
+      console.error(`x-for expression "${arrayExpr}" did not return an array`);
+      return;
+    }
+    reconcileFor(items);
+  });
+
+  // Return cleanup function
+  return () => {
+    cleanup();
+    for (const forItem of state.keyMap.values()) {
+      forItem.element.remove();
+      forItem.cleanup();
+    }
+    state.keyMap.clear();
+    anchor.remove();
+  };
 }
 
 function processTextDirective(el: Element, expr: string, scope: ComponentScope): void {
@@ -325,7 +668,26 @@ function initializeComponent(root: Element): void {
   // Process the root element
   processElement(root, scope);
 
-  // Process all child elements
+  // First pass: collect x-for templates (they will be removed from DOM during processing)
+  const forTemplates: HTMLTemplateElement[] = [];
+  const templateSelector = `template[${DIRECTIVES.FOR}]`;
+  root.querySelectorAll(templateSelector).forEach(el => {
+    // Don't process x-for templates that are inside nested x-data components
+    let parent = el.parentElement;
+    let isNested = false;
+    while (parent && parent !== root) {
+      if (parent.hasAttribute(DIRECTIVES.DATA)) {
+        isNested = true;
+        break;
+      }
+      parent = parent.parentElement;
+    }
+    if (!isNested) {
+      forTemplates.push(el as HTMLTemplateElement);
+    }
+  });
+
+  // Process all child elements (except x-for templates which are handled separately)
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
   let node: Element | null;
 
@@ -334,7 +696,16 @@ function initializeComponent(root: Element): void {
     if (node.hasAttribute(DIRECTIVES.DATA)) {
       continue;
     }
+    // Skip x-for templates - they're processed separately
+    if (node.tagName === 'TEMPLATE' && node.hasAttribute(DIRECTIVES.FOR)) {
+      continue;
+    }
     processElement(node, scope);
+  }
+
+  // Process x-for templates
+  for (const template of forTemplates) {
+    processForDirective(template, scope);
   }
 }
 

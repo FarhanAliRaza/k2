@@ -89,7 +89,6 @@
         const start = performance.now();
         appData.rows = appData.rows.filter(r => r.id !== id);
         await new Promise(r => requestAnimationFrame(r));
-        await new Promise(r => setTimeout(r, 50));
         const end = performance.now();
         times.push(end - start);
         lastRunEl.textContent = `${(end - start).toFixed(2)}ms`;
