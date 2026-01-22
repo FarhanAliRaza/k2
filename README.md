@@ -192,18 +192,6 @@ untrack(() => {
 dispose();
 ```
 
-## Benchmarks
-
-K2 outperforms Alpine.js across all benchmarks:
-
-| Benchmark | K2 | Alpine.js | K2 Faster By |
-|-----------|-----|-----------|--------------|
-| Create 1,000 rows | 15ms | 85ms | 5.7x |
-| Update every 10th | 2ms | 35ms | 17.5x |
-| Clear 1,000 rows | 1ms | 25ms | 25x |
-| Select row | 0.5ms | 15ms | 30x |
-
-*Results vary by browser and hardware. Run `benchmarks/index.html` to test yourself.*
 
 ### Why is K2 fast?
 
