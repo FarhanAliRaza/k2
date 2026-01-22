@@ -28,7 +28,7 @@
   <div id="app" x-data="benchmarkStore()">
     <div id="container">
       <template x-for="row in rows" :key="row.id">
-        <div class="row" :class="{ selected: row.id === selected }" x-text="row.label" @click="selected = row.id"></div>
+        <div class="row" :class="{ 'selected': selected === row.id }" x-text="row.label" @click="selected = row.id"></div>
       </template>
     </div>
   </div>
