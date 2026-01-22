@@ -32,13 +32,16 @@ interface ForItem {
   element: Element;
   scope: ComponentScope;
   cleanup: () => void;
+  prev: ForItem | null;  // Linked list pointer
+  next: ForItem | null;  // Linked list pointer
 }
 
 interface ForState {
   template: HTMLTemplateElement;
   anchor: Comment;
   keyMap: Map<unknown, ForItem>;
-  keys: unknown[];
+  first: ForItem | null;  // Head of linked list
+  last: ForItem | null;   // Tail of linked list
 }
 
 const DIRECTIVES = {
@@ -153,6 +156,7 @@ function executeScopedStatement(stmt: string, scope: ComponentScope, event?: Eve
 function createScopeFromString(el: Element, dataStr: string): ComponentScope {
   const signals: SignalStore = {};
   const computeds: ComputedStore = {};
+  const methods: Record<string, Function> = {};
 
   // Create scope object first
   const scope: ComponentScope = {
@@ -171,16 +175,49 @@ function createScopeFromString(el: Element, dataStr: string): ComponentScope {
     set(key: string, value: unknown): void {
       if (key in signals) {
         signals[key].set(value);
+      } else {
+        // Create new signal for new properties (Alpine compatibility)
+        signals[key] = new State(value);
       }
     },
   };
 
+  // Create reactive proxy (Alpine's `this` context)
+  const reactiveProxy = new Proxy({} as Record<string, unknown>, {
+    get(_, key: string) {
+      if (key in methods) {
+        return methods[key];
+      }
+      if (key in signals) {
+        return signals[key].get();
+      }
+      if (key in computeds) {
+        return computeds[key].get();
+      }
+      return undefined;
+    },
+    set(_, key: string, value: unknown) {
+      if (key in signals) {
+        signals[key].set(value);
+      } else {
+        signals[key] = new State(value);
+      }
+      return true;
+    },
+  });
+
   // Parse the data string to find functions vs values
   const tempData = new Function(`return (${dataStr})`)();
 
-  // First pass: create signals for non-functions
+  // First pass: create signals for non-functions, capture init
+  let initMethod: Function | null = null;
   for (const [key, value] of Object.entries(tempData)) {
-    if (typeof value !== 'function') {
+    if (typeof value === 'function') {
+      if (key === 'init') {
+        initMethod = value as Function;
+      }
+      // Other functions handled in second pass as computeds
+    } else {
       signals[key] = new State(value);
     }
   }
@@ -196,9 +233,9 @@ function createScopeFromString(el: Element, dataStr: string): ComponentScope {
     return `with({${getterCode}${setterCode ? ',' + setterCode : ''}}){return(${bodyExpr})}`;
   };
 
-  // Second pass: create computeds for functions
+  // Second pass: create computeds for functions (except init)
   for (const [key, value] of Object.entries(tempData)) {
-    if (typeof value === 'function') {
+    if (typeof value === 'function' && key !== 'init') {
       const fnStr = (value as () => unknown).toString();
 
       // Extract the function body
@@ -237,6 +274,14 @@ function createScopeFromString(el: Element, dataStr: string): ComponentScope {
   }
 
   scopes.set(el, scope);
+  // Also store on element for external access (benchmarks, devtools)
+  (el as unknown as Record<string, unknown>).__k2_scope = scope;
+
+  // Call init() lifecycle hook if present (Alpine compatibility)
+  if (initMethod) {
+    initMethod.call(reactiveProxy);
+  }
+
   return scope;
 }
 
@@ -378,7 +423,8 @@ function processForDirective(template: HTMLTemplateElement, parentScope: Compone
     template,
     anchor,
     keyMap: new Map(),
-    keys: [],
+    first: null,
+    last: null,
   };
 
   // Helper to get key for an item
@@ -422,6 +468,8 @@ function processForDirective(template: HTMLTemplateElement, parentScope: Compone
       element,
       scope: itemScope,
       cleanup: () => cleanups.forEach(fn => fn()),
+      prev: null,
+      next: null,
     };
   };
 
@@ -433,58 +481,187 @@ function processForDirective(template: HTMLTemplateElement, parentScope: Compone
     }
   };
 
-  // Reconciliation algorithm
+  // Helper to unlink an item from the linked list
+  const unlinkItem = (item: ForItem): void => {
+    if (item.prev) item.prev.next = item.next;
+    else state.first = item.next;
+    if (item.next) item.next.prev = item.prev;
+    else state.last = item.prev;
+    item.prev = null;
+    item.next = null;
+  };
+
+  // Helper to insert item after a given item in linked list
+  const linkAfter = (item: ForItem, after: ForItem | null): void => {
+    if (after === null) {
+      // Insert at beginning
+      item.prev = null;
+      item.next = state.first;
+      if (state.first) state.first.prev = item;
+      else state.last = item;
+      state.first = item;
+    } else {
+      item.prev = after;
+      item.next = after.next;
+      if (after.next) after.next.prev = item;
+      else state.last = item;
+      after.next = item;
+    }
+  };
+
+  // Helper to move item in DOM before another item
+  const moveItemBefore = (item: ForItem, before: ForItem | null): void => {
+    const dest = before ? before.element : null;
+    anchor.parentNode?.insertBefore(item.element, dest);
+  };
+
+  // Helper to remove item completely
+  const removeItem = (item: ForItem): void => {
+    unlinkItem(item);
+    item.element.remove();
+    item.cleanup();
+    state.keyMap.delete(item.key);
+  };
+
+  // Svelte-style reconciliation algorithm with linked list
   const reconcileFor = (newItems: unknown[]): void => {
-    const { keyMap, keys: oldKeys, anchor } = state;
+    const { keyMap, anchor } = state;
+    const length = newItems.length;
 
-    // Build new keys array and set
+    // Build new keys
     const newKeys: unknown[] = [];
-    const tempScopes: ComponentScope[] = [];
-
-    for (let i = 0; i < newItems.length; i++) {
-      // Create temporary scope to evaluate key expression
+    for (let i = 0; i < length; i++) {
       const tempScope = createItemScope(parentScope, anchor as unknown as Element, itemName, indexName, newItems[i], i);
-      tempScopes.push(tempScope);
-      const key = getKey(newItems[i], i, tempScope);
-      newKeys.push(key);
+      newKeys.push(getKey(newItems[i], i, tempScope));
     }
 
+    // Build set of new keys for O(1) lookup
     const newKeySet = new Set(newKeys);
 
-    // Phase 1: Remove items not in new array
-    for (const oldKey of oldKeys) {
-      if (!newKeySet.has(oldKey)) {
-        const forItem = keyMap.get(oldKey)!;
-        forItem.element.remove();
-        forItem.cleanup();
-        keyMap.delete(oldKey);
+    // Mark items for removal (not in new keys)
+    const toRemove: ForItem[] = [];
+    for (const [key, item] of keyMap) {
+      if (!newKeySet.has(key)) {
+        toRemove.push(item);
       }
     }
+    for (const item of toRemove) {
+      removeItem(item);
+    }
 
-    // Phase 2: Add new items, reorder existing
-    let prevNode: Node = anchor;
-    for (let i = 0; i < newItems.length; i++) {
+    // If empty, nothing to do
+    if (length === 0) return;
+
+    // Svelte-style linked list reconciliation
+    let current = state.first;  // Current position in existing list
+    let prev: ForItem | null = null;  // Previous item in new order
+    const seen = new Set<ForItem>();
+    let matched: ForItem[] = [];
+    let stashed: ForItem[] = [];
+
+    for (let i = 0; i < length; i++) {
       const key = newKeys[i];
-      let forItem = keyMap.get(key);
+      let item = keyMap.get(key);
 
-      if (!forItem) {
-        // New item - create element
-        forItem = createForItem(newItems[i], i);
-        keyMap.set(key, forItem);
+      if (!item) {
+        // New item - create and insert
+        item = createForItem(newItems[i], i);
+        keyMap.set(key, item);
+
+        // Insert in DOM after prev (or at start after anchor)
+        const insertBefore = prev ? prev.element.nextSibling : anchor.nextSibling;
+        anchor.parentNode?.insertBefore(item.element, insertBefore);
+
+        // Link into list
+        linkAfter(item, prev);
+        prev = item;
+        continue;
+      }
+
+      // Update item data
+      updateForItem(item, newItems[i], i);
+
+      if (item === current) {
+        // Item is already in the correct position
+        matched.push(item);
+        prev = item;
+        current = item.next;
+      } else if (seen.has(item)) {
+        // Item was seen before (it's in stashed) - need to move
+        // Decide: move matched items forward, or move this item back
+        if (matched.length < stashed.length) {
+          // Move all matched items to before the first stashed item
+          for (let j = 0; j < matched.length; j++) {
+            const m = matched[j];
+            unlinkItem(m);
+            moveItemBefore(m, stashed[0]);
+            // Relink in correct position
+            if (j === 0) {
+              linkAfter(m, prev);
+            } else {
+              linkAfter(m, matched[j - 1]);
+            }
+          }
+          // Now insert current item
+          const insertBefore = prev ? prev.element.nextSibling : anchor.nextSibling;
+          anchor.parentNode?.insertBefore(item.element, insertBefore);
+          unlinkItem(item);
+          linkAfter(item, prev);
+        } else {
+          // Move single item to current position
+          const insertBefore = prev ? prev.element.nextSibling : anchor.nextSibling;
+          anchor.parentNode?.insertBefore(item.element, insertBefore);
+          unlinkItem(item);
+          linkAfter(item, prev);
+        }
+        prev = item;
+        // Reset for next iteration - current continues from stashed
+        current = stashed[0] || null;
+        matched = [];
+        stashed = [];
+        seen.clear();
       } else {
-        // Existing item - update values
-        updateForItem(forItem, newItems[i], i);
-      }
+        // Item not yet encountered - search forward
+        matched = [];
+        stashed = [];
+        while (current !== null && current !== item) {
+          seen.add(current);
+          stashed.push(current);
+          current = current.next;
+        }
 
-      // Position correctly (only move if needed)
-      const expectedNext = prevNode.nextSibling;
-      if (forItem.element !== expectedNext) {
-        prevNode.parentNode?.insertBefore(forItem.element, expectedNext);
+        if (current === item) {
+          // Found it
+          if (stashed.length > 0) {
+            // Item needs to move - stashed items are between prev and item
+            // Move item to be right after prev
+            const insertBefore = prev ? prev.element.nextSibling : anchor.nextSibling;
+            anchor.parentNode?.insertBefore(item.element, insertBefore);
+            unlinkItem(item);
+            linkAfter(item, prev);
+          }
+          matched.push(item);
+          prev = item;
+          current = stashed.length > 0 ? stashed[0] : item.next;
+        } else {
+          // Item wasn't in remaining list - move it here
+          const insertBefore = prev ? prev.element.nextSibling : anchor.nextSibling;
+          anchor.parentNode?.insertBefore(item.element, insertBefore);
+          unlinkItem(item);
+          linkAfter(item, prev);
+          prev = item;
+        }
       }
-      prevNode = forItem.element;
     }
 
-    state.keys = newKeys;
+    // Remove any remaining items after current position (they're no longer needed)
+    while (current !== null) {
+      const next = current.next;
+      if (!newKeySet.has(current.key)) {
+        removeItem(current);
+      }
+      current = next;
+    }
   };
 
   // Create effect to track array changes
