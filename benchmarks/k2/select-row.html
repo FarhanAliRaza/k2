@@ -13,7 +13,7 @@
   </style>
 </head>
 <body>
-  <h1>K2 - Select Row Benchmark (x-for)</h1>
+  <h1>K2 - Select Row Benchmark</h1>
 
   <div id="controls">
     <button onclick="runBenchmark()">Run Benchmark (5 iterations)</button>
@@ -25,81 +25,37 @@
     <div>Average: <span id="average">-</span></div>
   </div>
 
-  <div id="container"></div>
+  <div id="app" x-data="benchmarkStore()">
+    <div id="container">
+      <template x-for="row in rows" :key="row.id">
+        <div class="row" :class="{ 'selected': selected === row.id }" x-text="row.label" @click="selected = row.id"></div>
+      </template>
+    </div>
+  </div>
 
   <script src="../../dist/k2.min.js"></script>
   <script>
-    const { State, effect } = K2;
-
-    const rows = new State([]);
-    const selected = new State(null);
+    let appData = null;
     let nextId = 1;
 
-    const container = document.getElementById('container');
     const lastRunEl = document.getElementById('lastRun');
     const averageEl = document.getElementById('average');
 
-    // Key -> DOM element mapping for efficient updates
-    const keyMap = new Map();
-    let currentKeys = [];
-
-    // Keyed reconciliation effect
-    effect(() => {
-      const currentRows = rows.get();
-      const selectedId = selected.get();
-      const newKeys = currentRows.map(r => r.id);
-      const newKeySet = new Set(newKeys);
-
-      // Phase 1: Remove items not in new array
-      for (const oldKey of currentKeys) {
-        if (!newKeySet.has(oldKey)) {
-          const el = keyMap.get(oldKey);
-          if (el) {
-            el.remove();
-            keyMap.delete(oldKey);
-          }
+    function benchmarkStore() {
+      return {
+        rows: [],
+        selected: null,
+        init() {
+          appData = this;
         }
-      }
+      };
+    }
 
-      // Phase 2: Add new items, update existing, reorder
-      let prevNode = null;
-      for (let i = 0; i < currentRows.length; i++) {
-        const row = currentRows[i];
-        const key = row.id;
-        let el = keyMap.get(key);
-
-        if (!el) {
-          // Create new element
-          el = document.createElement('div');
-          el.className = 'row';
-          el.textContent = row.label;
-          el.onclick = () => selected.set(row.id);
-          keyMap.set(key, el);
-        }
-
-        // Update selected class
-        el.classList.toggle('selected', row.id === selectedId);
-
-        // Position correctly
-        if (prevNode) {
-          if (el.previousSibling !== prevNode) {
-            prevNode.after(el);
-          }
-        } else {
-          if (el !== container.firstChild) {
-            container.prepend(el);
-          }
-        }
-        prevNode = el;
-      }
-
-      currentKeys = newKeys;
-    });
+    const adjectives = ['pretty', 'large', 'big', 'small', 'tall', 'short', 'long', 'handsome', 'plain', 'quaint'];
+    const colours = ['red', 'yellow', 'blue', 'green', 'pink', 'brown', 'purple', 'white', 'black', 'orange'];
+    const nouns = ['table', 'chair', 'house', 'bbq', 'desk', 'car', 'pony', 'cookie', 'sandwich', 'burger'];
 
     function buildData(count) {
-      const adjectives = ['pretty', 'large', 'big', 'small', 'tall', 'short', 'long', 'handsome', 'plain', 'quaint'];
-      const colours = ['red', 'yellow', 'blue', 'green', 'pink', 'brown', 'purple', 'white', 'black', 'orange'];
-      const nouns = ['table', 'chair', 'house', 'bbq', 'desk', 'car', 'pony', 'cookie', 'sandwich', 'burger'];
       const data = [];
       for (let i = 0; i < count; i++) {
         data.push({
@@ -113,23 +69,26 @@
     }
 
     function createRows() {
-      rows.set(buildData(1000));
-      selected.set(null);
+      appData.rows = buildData(1000);
+      appData.selected = null;
     }
 
     const times = [];
     async function runBenchmark() {
+      if (!appData) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+
       times.length = 0;
       createRows();
       await new Promise(r => setTimeout(r, 100));
 
       for (let i = 0; i < 5; i++) {
         const randomIndex = Math.floor(Math.random() * 1000);
-        const currentRows = rows.get();
 
         const start = performance.now();
-        if (currentRows[randomIndex]) {
-          selected.set(currentRows[randomIndex].id);
+        if (appData.rows[randomIndex]) {
+          appData.selected = appData.rows[randomIndex].id;
         }
         await new Promise(r => requestAnimationFrame(r));
         await new Promise(r => setTimeout(r, 0));

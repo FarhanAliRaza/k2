@@ -25,34 +25,36 @@
     <div>Average: <span id="average">-</span></div>
   </div>
 
-  <div id="container"></div>
+  <div id="app" x-data="benchmarkStore()">
+    <div id="container">
+      <template x-for="row in rows" :key="row.id">
+        <div class="row" x-text="row.label"></div>
+      </template>
+    </div>
+  </div>
 
   <script src="../../dist/k2.min.js"></script>
   <script>
-    const { State, effect } = K2;
-
-    const rows = new State([]);
+    let appData = null;
     let nextId = 1;
 
-    const container = document.getElementById('container');
     const lastRunEl = document.getElementById('lastRun');
     const averageEl = document.getElementById('average');
 
-    effect(() => {
-      const currentRows = rows.get();
-      container.innerHTML = '';
-      for (const row of currentRows) {
-        const div = document.createElement('div');
-        div.className = 'row';
-        div.textContent = row.label;
-        container.appendChild(div);
-      }
-    });
+    function benchmarkStore() {
+      return {
+        rows: [],
+        init() {
+          appData = this;
+        }
+      };
+    }
+
+    const adjectives = ['pretty', 'large', 'big', 'small', 'tall', 'short', 'long', 'handsome', 'plain', 'quaint'];
+    const colours = ['red', 'yellow', 'blue', 'green', 'pink', 'brown', 'purple', 'white', 'black', 'orange'];
+    const nouns = ['table', 'chair', 'house', 'bbq', 'desk', 'car', 'pony', 'cookie', 'sandwich', 'burger'];
 
     function buildData(count) {
-      const adjectives = ['pretty', 'large', 'big', 'small', 'tall', 'short', 'long', 'handsome', 'plain', 'quaint'];
-      const colours = ['red', 'yellow', 'blue', 'green', 'pink', 'brown', 'purple', 'white', 'black', 'orange'];
-      const nouns = ['table', 'chair', 'house', 'bbq', 'desk', 'car', 'pony', 'cookie', 'sandwich', 'burger'];
       const data = [];
       for (let i = 0; i < count; i++) {
         data.push({
@@ -65,12 +67,20 @@
       return data;
     }
 
+    function createRows() {
+      appData.rows = buildData(10000);
+    }
+
     function clearRows() {
-      rows.set([]);
+      appData.rows = [];
     }
 
     const times = [];
     async function runBenchmark() {
+      if (!appData) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+
       times.length = 0;
 
       for (let i = 0; i < 3; i++) {
@@ -78,7 +88,7 @@
         await new Promise(r => setTimeout(r, 100));
 
         const start = performance.now();
-        rows.set(buildData(10000));
+        appData.rows = buildData(10000);
         await new Promise(r => requestAnimationFrame(r));
         const end = performance.now();
 
